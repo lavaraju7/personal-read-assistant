@@ -1,0 +1,319 @@
+<main class="reader-shell" [class.assistant-open]="isAssistantOpen() && isReading()">
+  @if (!activeDocument()) {
+    <!-- HOME SCREEN -->
+    <div class="home-screen">
+      <header class="home-header">
+        <h1>
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+          Personal Reading Assistant
+        </h1>
+        <p class="subtitle">A minimalist, privacy-first document viewer & grounded AI assistant</p>
+      </header>
+
+      <section class="import-card">
+        <label class="file-picker-card">
+          <div class="picker-content">
+            <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+            <span class="picker-title">Import PDF or EPUB Document</span>
+            <span class="picker-desc">Click to browse your local files</span>
+          </div>
+          <input type="file" accept=".pdf,.epub" (change)="onFileSelected($event)" />
+        </label>
+      </section>
+
+      <section class="recent-files">
+        <h3>Recently Opened Documents</h3>
+        <div class="recent-list">
+          @for (doc of recentDocuments(); track doc.id) {
+            <button class="recent-item" type="button" (click)="setActive(doc.id)">
+              <div class="recent-icon">
+                @if (doc.format === 'pdf') {
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><polyline points="14 2 14 8 20 8"/></svg>
+                } @else {
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                }
+              </div>
+              <div class="recent-info">
+                <span class="recent-title">{{ doc.title }}</span>
+                <span class="recent-meta">
+                  {{ doc.format | uppercase }} &bull; Chunks: {{ getChunkCount(doc.id) || 'Not indexed' }}
+                </span>
+              </div>
+            </button>
+          } @empty {
+            <div class="no-recent">
+              <p>Your library is empty. Import a document above to begin reading.</p>
+            </div>
+          }
+        </div>
+      </section>
+    </div>
+  } @else if (isIndexing()) {
+    <!-- INDEXING LOADING SCREEN -->
+    <div class="loading-screen">
+      <div class="loading-card">
+        <div class="spinner"></div>
+        <h2>Indexing & Chunking</h2>
+        <p class="loading-doc">{{ activeDocument()?.title }}</p>
+        <div class="progress-info">
+          <span class="status-badge">Status: Indexing</span>
+          <span class="chunks-badge">Chunks: {{ activeDocument() ? getChunkCount(activeDocument()!.id) : 0 }}</span>
+        </div>
+        <p class="loading-help">Building a local semantic database for AI recall...</p>
+      </div>
+    </div>
+  } @else if (isError()) {
+    <!-- INDEXING ERROR SCREEN -->
+    <div class="error-screen">
+      <div class="error-card">
+        <svg class="error-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+        <h2>Indexing Failed</h2>
+        <p class="error-doc">{{ activeDocument()?.title }}</p>
+        <p class="error-help">
+          We couldn't build the semantic search index for this document. If this is your first time importing, please ensure you are online to download the local embedding model.
+        </p>
+        <div class="error-actions">
+          <button class="retry-btn" type="button" (click)="retryIndexing()">Retry Indexing</button>
+          <button class="ignore-btn" type="button" (click)="openWithoutAi()">
+            Open Document Anyway (No AI)
+          </button>
+          <button class="home-btn" type="button" (click)="closeDocument()">Back to Library</button>
+        </div>
+      </div>
+    </div>
+  } @else if (isReading()) {
+    <!-- READER SCREEN -->
+    <div class="reader-container">
+      <!-- TOP MENU BAR -->
+      <header class="reader-header">
+        <button class="back-btn" (click)="closeDocument()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Library
+        </button>
+        
+        <h1 class="document-title">{{ activeDocument()?.title }}</h1>
+        
+        <div class="header-actions">
+          <label class="minimal-import-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+            Import File
+            <input type="file" accept=".pdf,.epub" (change)="onFileSelected($event)" />
+          </label>
+        </div>
+      </header>
+
+      <!-- MAIN READER BODY -->
+      <div class="reader-body">
+        <section class="viewer-panel">
+          @if (activeDocument(); as active) {
+            @if (active.format === 'pdf') {
+              <app-pdf-viewer
+                [sourceUrl]="active.filePath"
+                (pageViewed)="onPdfPageViewed($event)"
+              ></app-pdf-viewer>
+            } @else {
+              <app-epub-viewer
+                [sourceUrl]="active.filePath"
+                (locationChanged)="onEpubLocationChanged($event)"
+              ></app-epub-viewer>
+            }
+          }
+        </section>
+
+        <!-- FLOATING ACTION BUTTON (FAB) FOR AI -->
+        @if (!isAssistantOpen()) {
+          <button class="ai-fab" type="button" (click)="toggleAssistant()" title="Open AI Reading Assistant">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+          </button>
+        }
+
+        <!-- COLLAPSIBLE ASSISTANT PANEL -->
+        @if (isAssistantOpen()) {
+          <aside class="assistant-panel">
+            <header class="assistant-header">
+              <h2>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                Reading Assistant
+              </h2>
+              <button class="close-assistant-btn" (click)="toggleAssistant()" title="Close Assistant">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </header>
+
+            <div class="assistant-content">
+              <section class="model-settings">
+                <div class="model-header">
+                  <h3>Provider Settings</h3>
+                  <button
+                    type="button"
+                    [class.active]="editableModelConfig().mode === 'bundled-gemma'"
+                    (click)="setModelMode('bundled-gemma')"
+                  >
+                    Built-in Gemma
+                  </button>
+                </div>
+
+                <label>
+                  Model
+                  <input
+                    type="text"
+                    [ngModel]="editableModelConfig().gemma.model"
+                    (ngModelChange)="updateGemmaModel($event)"
+                  />
+                </label>
+                <label>
+                  Runtime Endpoint
+                  <input
+                    type="text"
+                    [ngModel]="editableModelConfig().gemma.endpoint"
+                    (ngModelChange)="updateGemmaEndpoint($event)"
+                  />
+                </label>
+
+                <button class="advanced-toggle" type="button" (click)="toggleAdvancedModels()">
+                  {{ showAdvancedModels() ? 'Hide Advanced' : 'Show Advanced Models' }}
+                </button>
+
+                @if (showAdvancedModels()) {
+                  <label>
+                    Model File (GGUF)
+                    <input
+                      type="text"
+                      [ngModel]="editableModelConfig().gemma.modelFileName"
+                      (ngModelChange)="updateGemmaModelFileName($event)"
+                    />
+                  </label>
+                  <label class="runtime-file">
+                    Runtime File (EXE)
+                    <input
+                      type="text"
+                      [ngModel]="editableModelConfig().gemma.runtimeFileName"
+                      (ngModelChange)="updateGemmaRuntimeFileName($event)"
+                    />
+                  </label>
+
+                  <div class="mode-toggle">
+                    <button
+                      type="button"
+                      [class.active]="editableModelConfig().mode === 'cloud'"
+                      (click)="setModelMode('cloud')"
+                    >
+                      Cloud Provider
+                    </button>
+                    <button
+                      type="button"
+                      [class.active]="editableModelConfig().mode === 'local'"
+                      (click)="setModelMode('local')"
+                    >
+                      Local Server
+                    </button>
+                  </div>
+
+                  @if (editableModelConfig().mode === 'cloud') {
+                    <label>
+                      API Base URL
+                      <input
+                        type="text"
+                        [ngModel]="editableModelConfig().cloud.apiBaseUrl"
+                        (ngModelChange)="updateCloudApiBaseUrl($event)"
+                      />
+                    </label>
+                    <label>
+                      Model
+                      <input
+                        type="text"
+                        [ngModel]="editableModelConfig().cloud.model"
+                        (ngModelChange)="updateCloudModel($event)"
+                      />
+                    </label>
+                    <label>
+                      API Key
+                      <input
+                        type="password"
+                        [ngModel]="editableModelConfig().cloud.apiKey"
+                        (ngModelChange)="updateCloudApiKey($event)"
+                        placeholder="sk-..."
+                      />
+                    </label>
+                  }
+
+                  @if (editableModelConfig().mode === 'local') {
+                    <label>
+                      Local Endpoint
+                      <input
+                        type="text"
+                        [ngModel]="editableModelConfig().local.endpoint"
+                        (ngModelChange)="updateLocalEndpoint($event)"
+                      />
+                    </label>
+                    <label>
+                      Local Model
+                      <input
+                        type="text"
+                        [ngModel]="editableModelConfig().local.model"
+                        (ngModelChange)="updateLocalModel($event)"
+                      />
+                    </label>
+                  }
+                }
+
+                <div class="settings-actions">
+                  <button type="button" (click)="saveModelConfig()">Save Settings</button>
+                  <button type="button" (click)="refreshProviderStatus()">Refresh Status</button>
+                </div>
+
+                <p class="status-line">
+                  {{ providerStatus().configured ? '🟢 Ready' : '🔴 Not Ready' }}: {{ providerStatus().message }}
+                </p>
+                @if (saveMessage()) {
+                  <p class="save-line">{{ saveMessage() }}</p>
+                }
+              </section>
+
+              <div class="query-row">
+                <input
+                  type="text"
+                  [ngModel]="query()"
+                  (ngModelChange)="query.set($event)"
+                  placeholder="Ask a question about your documents..."
+                  (keyup.enter)="searchRecall()"
+                />
+                <button type="button" (click)="searchRecall()">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: text-bottom;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  Ask
+                </button>
+              </div>
+              
+              <div class="answer-box">
+                @if (isRunningAnswer()) {
+                  <p><em>Thinking...</em></p>
+                } @else if (groundedAnswer()) {
+                  <p>{{ groundedAnswer() }}</p>
+                } @else {
+                  <p style="color: var(--text-tertiary); font-style: italic;">Your AI answer will appear here based strictly on your library content.</p>
+                }
+              </div>
+
+              <ul class="results-list">
+                @for (result of results(); track result.chunkId) {
+                  <li>
+                    <button
+                      type="button"
+                      (click)="jumpToResult(result)"
+                      [class.active]="selectedResultId() === result.chunkId"
+                    >
+                      <span class="snippet">"{{ result.snippet }}"</span>
+                      <span class="section">{{ result.sectionPath.join(' > ') }}</span>
+                    </button>
+                  </li>
+                } @empty {
+                  <li class="empty">No search results to show.</li>
+                }
+              </ul>
+            </div>
+          </aside>
+        }
+      </div>
+    </div>
+  }
+</main>

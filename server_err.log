@@ -1,0 +1,40 @@
+0.00.039.864 I log_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.040.047 I device_info:
+0.00.040.076 I   - CPU     : 12th Gen Intel(R) Core(TM) i5-1235U (15942 MiB, 6604 MiB free)
+0.00.041.113 I system_info: n_threads = 10 (n_threads_batch = 10) / 12 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
+0.00.042.603 I srv  llama_server: n_parallel is set to auto, using n_parallel = 4 and kv_unified = true
+0.00.051.508 I srv          init: running without SSL
+0.00.054.326 I srv          init: using 11 threads for HTTP server
+0.00.066.566 I srv         start: binding port with default address family
+0.00.072.111 I srv  llama_server: loading model
+0.00.072.367 I srv    load_model: loading model 'src-tauri\resources\gemma\gemma-3-1b-it-q4.gguf'
+0.00.076.133 I common_init_result: fitting params to device memory ...
+0.00.076.139 I common_init_result: (for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on)
+0.00.562.468 I common_params_fit_impl: projected to use 737 MiB of host memory vs. 15942 MiB of total host memory
+0.00.894.991 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.01.789.700 W llama_context: n_ctx_seq (4096) < n_ctx_train (32768) -- the full capacity of the model will not be utilized
+0.01.829.045 I common_init_from_params: warming up the model with an empty run - please wait ... (--no-warmup to disable)
+0.02.003.282 I srv    load_model: initializing slots, n_slots = 4
+0.02.058.081 W common_speculative_init: no implementations specified for speculative decoding
+0.02.058.093 I slot   load_model: id  0 | task -1 | new slot, n_ctx = 4096
+0.02.058.095 I slot   load_model: id  1 | task -1 | new slot, n_ctx = 4096
+0.02.058.096 I slot   load_model: id  2 | task -1 | new slot, n_ctx = 4096
+0.02.058.096 I slot   load_model: id  3 | task -1 | new slot, n_ctx = 4096
+0.02.058.252 I srv    load_model: prompt cache is enabled, size limit: 8192 MiB
+0.02.058.254 I srv    load_model: use `--cache-ram 0` to disable the prompt cache
+0.02.058.255 I srv    load_model: for more info see https://github.com/ggml-org/llama.cpp/pull/16391
+0.02.058.256 I srv    load_model: context checkpoints enabled, max = 32, min spacing = 256
+0.02.060.621 I srv          init: idle slots will be saved to prompt cache and cleared upon starting a new task
+0.02.090.378 I init: chat template, example_format: '<start_of_turn>user
+You are a helpful assistant
+Hello<end_of_turn>
+<start_of_turn>model
+Hi there<end_of_turn>
+<start_of_turn>user
+How are you?<end_of_turn>
+<start_of_turn>model
+'
+0.02.093.629 I srv          init: init: chat template, thinking = 0
+0.02.095.689 I srv  llama_server: model loaded
+0.02.095.698 I srv  llama_server: server is listening on http://127.0.0.1:17641
+0.02.095.712 I srv  update_slots: all slots are idle
