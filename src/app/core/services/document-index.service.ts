@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import * as pdfjsLib from 'pdfjs-dist';
 import { LibraryDocument, RetrievedPassage } from '../models/document.models';
 import { EmbeddingService } from './embedding.service';
+import Epub from 'epubjs';
 
 (pdfjsLib as any).GlobalWorkerOptions.workerSrc =
   'https://unpkg.com/pdfjs-dist@5.7.284/build/pdf.worker.min.mjs';
@@ -14,6 +15,7 @@ interface IndexedChunk {
   sectionPath: string[];
   tokens: string[];
   embedding?: number[];
+  cfiStart?: string;
 }
 
 @Injectable({
@@ -51,9 +53,26 @@ export class DocumentIndexService {
         this.chunksByDoc.set(document.id, pdfChunks);
         this.setState(document.id, pdfChunks.length > 0 ? 'ready' : 'error');
       } else {
-        this.chunksByDoc.set(document.id, []);
-        this.setState(document.id, 'error');
-        console.warn('EPUB indexing is not implemented yet.');
+        try {
+          const epubChunks = await this.extractEpubChunks(document.id, sourceFile);
+
+          if (epubChunks.length > 0) {
+            const texts = epubChunks.map((c) => c.text);
+            const embeddings = await this.embeddingService.getEmbeddingsBatch(texts);
+            for (let i = 0; i < epubChunks.length; i++) {
+              epubChunks[i].embedding = embeddings[i];
+            }
+            this.chunksByDoc.set(document.id, epubChunks);
+            this.setState(document.id, 'ready');
+          } else {
+            this.chunksByDoc.set(document.id, []);
+            this.setState(document.id, 'error');
+          }
+        } catch (error) {
+          console.error('EPUB indexing failed', error);
+          this.chunksByDoc.set(document.id, []);
+          this.setState(document.id, 'error');
+        }
       }
     } catch (error) {
       console.error('Indexing failed', error);
@@ -135,6 +154,7 @@ export class DocumentIndexService {
           docId: chunk.docId,
           format,
           page: format === 'pdf' ? chunk.page : undefined,
+          cfiStart: format === 'epub' ? chunk.cfiStart : undefined,
         },
       }));
   }
@@ -160,17 +180,92 @@ export class DocumentIndexService {
         continue;
       }
 
-      const pageChunks = this.chunkPageText(docId, pageNum, text);
+      const pageChunks = this.chunkText(docId, pageNum, text);
       allChunks.push(...pageChunks);
     }
 
     return allChunks;
   }
 
-  private chunkPageText(
+  private async extractEpubChunks(
+    docId: string,
+    file: File,
+  ): Promise<IndexedChunk[]> {
+    const objectUrl = URL.createObjectURL(file);
+    const allChunks: IndexedChunk[] = [];
+
+    try {
+      const book = Epub(objectUrl);
+      await (book as any).ready;
+
+      // Build a href → title map from the table of contents
+      const tocMap = new Map<string, string>();
+      const toc: any[] = (await (book as any).loaded.navigation)?.toc ?? [];
+      const walkToc = (items: any[]) => {
+        for (const item of items) {
+          if (item.href) {
+            // Strip fragment identifiers from the href for matching
+            const href = item.href.split('#')[0];
+            tocMap.set(href, item.label?.trim() ?? '');
+          }
+          if (item.subitems?.length) {
+            walkToc(item.subitems);
+          }
+        }
+      };
+      walkToc(toc);
+
+      await (book as any).loaded.spine;
+      const spineItems: any[] = (book as any).spine?.spineItems ?? [];
+
+      let spineIndex = 0;
+      for (const spineItem of spineItems) {
+        spineIndex++;
+        try {
+          await spineItem.load((book as any).load.bind(book));
+
+          // Extract plain text from the spine item's document
+          const doc: Document | undefined = spineItem.document;
+          const rawText = doc?.body?.textContent ?? '';
+          const text = rawText.replace(/\s+/g, ' ').trim();
+
+          if (!text) {
+            spineItem.unload();
+            continue;
+          }
+
+          // Determine section label from TOC map, fallback to "Chapter N"
+          const hrefKey = (spineItem.href ?? '').split('#')[0];
+          const sectionLabel = tocMap.get(hrefKey) || `Chapter ${spineIndex}`;
+
+          // cfiBase is the spine item's CFI prefix (e.g. "epubcfi(/6/4!)")
+          const cfiBase: string = spineItem.cfiBase ?? '';
+
+          const chunks = this.chunkText(docId, spineIndex, text, [sectionLabel], cfiBase);
+          allChunks.push(...chunks);
+        } catch (itemError) {
+          console.warn(`[DocumentIndexService] EPUB spine item ${spineIndex} failed:`, itemError);
+        } finally {
+          try {
+            spineItem.unload();
+          } catch { /* ignore */ }
+        }
+      }
+
+      book.destroy();
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+
+    return allChunks;
+  }
+
+  private chunkText(
     docId: string,
     page: number,
     text: string,
+    sectionPath?: string[],
+    cfiStart?: string,
   ): IndexedChunk[] {
     const words = text.split(/\s+/);
     const chunkSize = 180;
@@ -188,8 +283,9 @@ export class DocumentIndexService {
         docId,
         page,
         text: chunkText,
-        sectionPath: [`Page ${page}`],
+        sectionPath: sectionPath ?? [`Page ${page}`],
         tokens: this.tokenize(chunkText),
+        ...(cfiStart !== undefined ? { cfiStart } : {}),
       });
     }
 
@@ -199,8 +295,9 @@ export class DocumentIndexService {
         docId,
         page,
         text,
-        sectionPath: [`Page ${page}`],
+        sectionPath: sectionPath ?? [`Page ${page}`],
         tokens: this.tokenize(text),
+        ...(cfiStart !== undefined ? { cfiStart } : {}),
       });
     }
 

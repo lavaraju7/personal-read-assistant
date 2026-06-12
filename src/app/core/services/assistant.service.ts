@@ -4,7 +4,6 @@ import { RecallRequest } from '../models/reader.models';
 import { DocumentIndexService } from './document-index.service';
 import { LibraryService } from './library.service';
 import { ModelConfigService } from './model-config.service';
-import { TauriBridgeService } from './tauri-bridge.service';
 
 @Injectable({
   providedIn: 'root',
@@ -14,7 +13,6 @@ export class AssistantService {
     private readonly libraryService: LibraryService,
     private readonly documentIndexService: DocumentIndexService,
     private readonly modelConfigService: ModelConfigService,
-    private readonly tauriBridge: TauriBridgeService,
   ) {}
 
   async recallFromLibrary(request: RecallRequest): Promise<RetrievedPassage[]> {
@@ -175,8 +173,6 @@ export class AssistantService {
       return 'No retrieved context available yet. Import and index content first.';
     }
 
-    // For counting questions, bypass the LLM entirely — small models always hallucinate
-    // a specific number. Instead, deterministically extract what is mentioned and caveat scope.
     if (this.isCountingQuestion(query)) {
       const names = this.extractMentionedNames(contextSnippets);
       const nameList = names.length > 0 ? names.join(', ') : 'no names clearly identified';
@@ -189,37 +185,12 @@ export class AssistantService {
     }
 
     try {
-      const config = this.modelConfigService.config();
-      if (config.mode === 'bundled-gemma') {
-        return await this.callBundledGemma(query, contextSnippets);
-      }
-      if (config.mode === 'local') {
-        return await this.callLocalModel(query, contextSnippets, config.local.endpoint, config.local.model);
-      }
-      return await this.callCloudModel(
-        query,
-        contextSnippets,
-        config.cloud.apiBaseUrl,
-        config.cloud.model,
-        config.cloud.apiKey,
-      );
+      const { apiBaseUrl, model, apiKey } = this.modelConfigService.config();
+      return await this.callCloudModel(query, contextSnippets, apiBaseUrl, model, apiKey);
     } catch (error) {
       const message = this.formatAssistantError(error);
       return `Assistant error: ${message}`;
     }
-  }
-
-  private async callBundledGemma(query: string, contextSnippets: string[]): Promise<string> {
-    if (!this.tauriBridge.isTauriRuntime()) {
-      throw new Error(
-        'Bundled Gemma runs only in the desktop app. Start the app with npm run tauri:dev, not npm run start.',
-      );
-    }
-
-    return await this.tauriBridge.invoke<string>('generate_grounded_response', {
-      query,
-      contextSnippets,
-    });
   }
 
   private formatAssistantError(error: unknown): string {
@@ -288,34 +259,5 @@ export class AssistantService {
       payload.choices?.[0]?.message?.content?.trim() ??
       'Cloud response parsed, but no text content returned.'
     );
-  }
-
-  private async callLocalModel(
-    query: string,
-    contextSnippets: string[],
-    endpoint: string,
-    model: string,
-  ): Promise<string> {
-    const response = await fetch(`${endpoint.replace(/\/$/, '')}/api/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        stream: false,
-        prompt: `You are a reading assistant. Using ONLY the context below, write a complete sentence answer.\nOnly state facts DIRECTLY written in the context. Do NOT infer or guess any relationships.\nIf the answer is not in the context, say: Not found in the provided passages.\n\nQuestion: ${query}\n\nContext:\n${contextSnippets
-          .map((snippet) => `- ${snippet}`)
-          .join('\n')}`,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`Local provider error ${response.status}: ${errorBody}`);
-    }
-
-    const payload = (await response.json()) as { response?: string };
-    return payload.response ?? 'Local model returned no text.';
   }
 }

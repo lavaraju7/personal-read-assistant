@@ -24,7 +24,7 @@
 
 .home-header {
   text-align: center;
-  
+
   h1 {
     font-size: 2.25rem;
     font-weight: 700;
@@ -180,7 +180,7 @@
   color: var(--text-tertiary);
   font-style: italic;
   font-size: 0.9rem;
-  
+
   p {
     margin: 0;
   }
@@ -250,8 +250,13 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .progress-info {
@@ -259,7 +264,7 @@
   gap: 0.75rem;
   justify-content: center;
   width: 100%;
-  
+
   .status-badge,
   .chunks-badge {
     font-size: 0.75rem;
@@ -545,8 +550,13 @@ app-pdf-viewer {
 }
 
 @keyframes slideIn {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
 }
 
 .assistant-header {
@@ -597,144 +607,11 @@ app-pdf-viewer {
   gap: 1.25rem;
 }
 
-/* Settings block inside assistant */
-.model-settings {
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-
-  h3 {
-    margin: 0;
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-secondary);
-  }
-
-  label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-  }
-
-  input {
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background: var(--bg-app);
-    color: var(--text-primary);
-    font-size: 0.8rem;
-    
-    &:focus {
-      outline: none;
-      border-color: var(--accent-color);
-    }
-  }
-}
-
-.model-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  
-  button {
-    border: 1px solid var(--border-color);
-    background: transparent;
-    border-radius: 6px;
-    padding: 0.3rem 0.6rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.15s;
-
-    &:hover {
-      background: var(--bg-hover);
-    }
-
-    &.active {
-      background: var(--bg-active);
-      color: var(--text-primary);
-      border-color: transparent;
-    }
-  }
-}
-
-.advanced-toggle {
-  width: 100%;
-  border: 1px solid var(--border-color);
-  background: transparent;
-  border-radius: 6px;
-  padding: 0.4rem;
+/* Provider status line */
+.provider-status {
+  margin: 0 0 0.25rem;
   font-size: 0.75rem;
-  font-weight: 500;
   color: var(--text-secondary);
-  cursor: pointer;
-  
-  &:hover {
-    background: var(--bg-hover);
-  }
-}
-
-.mode-toggle {
-  display: flex;
-  gap: 0.25rem;
-  background: var(--bg-app);
-  padding: 0.2rem;
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
-  
-  button {
-    flex: 1;
-    border: none;
-    background: transparent;
-    border-radius: 4px;
-    padding: 0.35rem;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    
-    &.active {
-      background: var(--bg-panel);
-      color: var(--text-primary);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-  }
-}
-
-.settings-actions {
-  display: flex;
-  gap: 0.5rem;
-  
-  button {
-    flex: 1;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 0.45rem;
-    background: var(--bg-panel);
-    color: var(--text-primary);
-    font-size: 0.75rem;
-    font-weight: 500;
-    cursor: pointer;
-    
-    &:hover {
-      background: var(--bg-hover);
-    }
-  }
-}
-
-.status-line,
-.save-line {
-  margin: 0;
-  font-size: 0.7rem;
-  color: var(--text-tertiary);
-  text-align: center;
 }
 
 /* Query Row */
@@ -751,7 +628,7 @@ app-pdf-viewer {
     background: var(--bg-app);
     color: var(--text-primary);
     font-size: 0.85rem;
-    
+
     &:focus {
       outline: none;
       border-color: var(--accent-color);
@@ -803,7 +680,7 @@ app-pdf-viewer {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  
+
   li {
     width: 100%;
   }

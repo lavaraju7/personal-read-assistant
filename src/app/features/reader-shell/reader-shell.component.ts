@@ -1,8 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, ViewChild, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LibraryDocument, RetrievedPassage } from '../../core/models/document.models';
-import { HybridModelConfig, ModelMode } from '../../core/models/model-config.models';
 import { AssistantService } from '../../core/services/assistant.service';
 import { DocumentIndexService } from '../../core/services/document-index.service';
 import { LibraryService } from '../../core/services/library.service';
@@ -18,7 +17,7 @@ import { PdfViewerComponent } from '../pdf-viewer/pdf-viewer.component';
   templateUrl: './reader-shell.component.html',
   styleUrl: './reader-shell.component.scss',
 })
-export class ReaderShellComponent implements OnInit {
+export class ReaderShellComponent {
   @ViewChild(PdfViewerComponent) pdfViewer?: PdfViewerComponent;
   @ViewChild(EpubViewerComponent) epubViewer?: EpubViewerComponent;
 
@@ -33,15 +32,11 @@ export class ReaderShellComponent implements OnInit {
   readonly selectedResultId = signal<string | null>(null);
   readonly groundedAnswer = signal('');
   readonly isRunningAnswer = signal(false);
-  readonly saveMessage = signal('');
-  readonly showAdvancedModels = signal(false);
   readonly isAssistantOpen = signal(false);
 
   readonly documents = this.libraryService.documents;
   readonly activeDocument = computed(() => this.libraryService.getActiveDocument());
-  readonly modelConfig = this.modelConfigService.config;
   readonly providerStatus = this.modelConfigService.status;
-  readonly editableModelConfig = signal<HybridModelConfig>(this.modelConfigService.config());
   readonly indexingState = this.documentIndexService.indexingState;
 
   readonly isIndexing = computed(() => {
@@ -99,11 +94,6 @@ export class ReaderShellComponent implements OnInit {
         [doc.id]: 'ready',
       }));
     }
-  }
-
-  async ngOnInit(): Promise<void> {
-    await Promise.all([this.libraryService.loadLibrary(), this.modelConfigService.loadConfig()]);
-    this.editableModelConfig.set(structuredClone(this.modelConfigService.config()));
   }
 
   async onFileSelected(event: Event): Promise<void> {
@@ -218,87 +208,6 @@ export class ReaderShellComponent implements OnInit {
       type: 'section_view',
       value: cfi,
     });
-  }
-
-  setModelMode(mode: ModelMode): void {
-    this.editableModelConfig.update((config) => ({ ...config, mode }));
-  }
-
-  toggleAdvancedModels(): void {
-    this.showAdvancedModels.update((visible) => !visible);
-  }
-
-  updateGemmaEndpoint(value: string): void {
-    this.editableModelConfig.update((cfg) => ({
-      ...cfg,
-      gemma: { ...cfg.gemma, endpoint: value },
-    }));
-  }
-
-  updateGemmaModel(value: string): void {
-    this.editableModelConfig.update((cfg) => ({
-      ...cfg,
-      gemma: { ...cfg.gemma, model: value },
-    }));
-  }
-
-  updateGemmaModelFileName(value: string): void {
-    this.editableModelConfig.update((cfg) => ({
-      ...cfg,
-      gemma: { ...cfg.gemma, modelFileName: value },
-    }));
-  }
-
-  updateGemmaRuntimeFileName(value: string): void {
-    this.editableModelConfig.update((cfg) => ({
-      ...cfg,
-      gemma: { ...cfg.gemma, runtimeFileName: value },
-    }));
-  }
-
-  async saveModelConfig(): Promise<void> {
-    await this.modelConfigService.saveConfig(this.editableModelConfig());
-    this.editableModelConfig.set(structuredClone(this.modelConfigService.config()));
-    this.saveMessage.set(`Saved ${this.modelConfigService.status().mode} provider settings.`);
-  }
-
-  async refreshProviderStatus(): Promise<void> {
-    await this.modelConfigService.refreshStatus();
-  }
-
-  updateCloudApiBaseUrl(value: string): void {
-    this.editableModelConfig.update((cfg) => ({
-      ...cfg,
-      cloud: { ...cfg.cloud, apiBaseUrl: value },
-    }));
-  }
-
-  updateCloudModel(value: string): void {
-    this.editableModelConfig.update((cfg) => ({
-      ...cfg,
-      cloud: { ...cfg.cloud, model: value },
-    }));
-  }
-
-  updateCloudApiKey(value: string): void {
-    this.editableModelConfig.update((cfg) => ({
-      ...cfg,
-      cloud: { ...cfg.cloud, apiKey: value },
-    }));
-  }
-
-  updateLocalEndpoint(value: string): void {
-    this.editableModelConfig.update((cfg) => ({
-      ...cfg,
-      local: { ...cfg.local, endpoint: value },
-    }));
-  }
-
-  updateLocalModel(value: string): void {
-    this.editableModelConfig.update((cfg) => ({
-      ...cfg,
-      local: { ...cfg.local, model: value },
-    }));
   }
 
   getChunkCount(docId: string): number {

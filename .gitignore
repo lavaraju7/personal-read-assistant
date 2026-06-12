@@ -47,3 +47,6 @@ Thumbs.db
 /llama_ext/
 src-tauri/resources/gemma/*
 !src-tauri/resources/gemma/README.md
+
+# Secrets
+.env
