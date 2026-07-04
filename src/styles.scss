@@ -1,20 +1,26 @@
 :root {
-  /* Paper Theme Colors */
-  --bg-app: #F9F8F6; /* Warm off-white paper background */
-  --bg-panel: #FFFFFF; /* Pure white for panels */
-  --bg-hover: #F1EFEA;
-  --bg-active: #EAE6DF;
+  /* Premium Dark Theme Variables */
+  --bg-app: #090d16; /* Deep cosmic dark slate */
+  --bg-panel: rgba(21, 29, 47, 0.75); /* Frosted panel */
+  --bg-hover: rgba(35, 48, 77, 0.8);
+  --bg-active: rgba(49, 67, 107, 0.9);
   
-  --text-primary: #2D2A26; /* Soft charcoal text, less harsh than pure black */
-  --text-secondary: #5A5651;
-  --text-tertiary: #8C8881;
+  --text-primary: #f8fafc; /* Crisp clean off-white */
+  --text-secondary: #cbd5e1; /* Soft slate gray */
+  --text-tertiary: #64748b; /* Muted slate */
   
-  --border-color: #E6E4DD;
-  --accent-color: #3B82F6; /* Clean blue for subtle highlights/links */
-  --accent-color-hover: #2563EB;
-
+  --border-color: rgba(255, 255, 255, 0.08); /* Clean modern border */
+  --accent-color: #6366f1; /* Vibrant indigo */
+  --accent-color-hover: #4f46e5;
+  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); /* Beautiful indigo-purple gradient */
+  
   --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-reading: 'Lora', Georgia, 'Times New Roman', serif;
+  --font-reading: 'Lora', Georgia, serif;
+  
+  --glass-bg: rgba(13, 20, 38, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --backdrop-blur: blur(12px);
 }
 
 *,
@@ -32,12 +38,13 @@ body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
 }
 
-/* Custom minimal scrollbar */
+/* Custom premium scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -45,10 +52,21 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D4D2C9;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #BDBBAE;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Base button and input resets */
+button, input {
+  font-family: inherit;
 }

@@ -1,376 +1,63 @@
 import { Injectable, inject, signal } from '@angular/core';
-import * as pdfjsLib from 'pdfjs-dist';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { LibraryDocument, RetrievedPassage } from '../models/document.models';
-import { EmbeddingService } from './embedding.service';
-import Epub from 'epubjs';
-
-(pdfjsLib as any).GlobalWorkerOptions.workerSrc =
-  'https://unpkg.com/pdfjs-dist@5.7.284/build/pdf.worker.min.mjs';
-
-interface IndexedChunk {
-  id: string;
-  docId: string;
-  page: number;
-  text: string;
-  sectionPath: string[];
-  tokens: string[];
-  embedding?: number[];
-  cfiStart?: string;
-}
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root',
 })
 export class DocumentIndexService {
-  private readonly embeddingService = inject(EmbeddingService);
+  private readonly http = inject(HttpClient);
+  private readonly apiUrl = environment.apiUrl;
 
   readonly indexingState = signal<
     Record<string, 'idle' | 'indexing' | 'ready' | 'error'>
   >({});
-
-  private readonly chunksByDoc = new Map<string, IndexedChunk[]>();
 
   async indexDocument(
     document: LibraryDocument,
     sourceFile: File,
   ): Promise<void> {
     this.setState(document.id, 'indexing');
-
     try {
-      if (document.format === 'pdf') {
-        const pdfChunks = await this.extractPdfChunks(document.id, sourceFile);
-
-        // Generate embeddings for each chunk in a batch
-        if (pdfChunks.length > 0) {
-          const texts = pdfChunks.map((c) => c.text);
-          const embeddings =
-            await this.embeddingService.getEmbeddingsBatch(texts);
-          for (let i = 0; i < pdfChunks.length; i++) {
-            pdfChunks[i].embedding = embeddings[i];
-          }
-        }
-
-        this.chunksByDoc.set(document.id, pdfChunks);
-        this.setState(document.id, pdfChunks.length > 0 ? 'ready' : 'error');
-      } else {
-        try {
-          const epubChunks = await this.extractEpubChunks(document.id, sourceFile);
-
-          if (epubChunks.length > 0) {
-            const texts = epubChunks.map((c) => c.text);
-            const embeddings = await this.embeddingService.getEmbeddingsBatch(texts);
-            for (let i = 0; i < epubChunks.length; i++) {
-              epubChunks[i].embedding = embeddings[i];
-            }
-            this.chunksByDoc.set(document.id, epubChunks);
-            this.setState(document.id, 'ready');
-          } else {
-            this.chunksByDoc.set(document.id, []);
-            this.setState(document.id, 'error');
-          }
-        } catch (error) {
-          console.error('EPUB indexing failed', error);
-          this.chunksByDoc.set(document.id, []);
-          this.setState(document.id, 'error');
-        }
-      }
+      // Indexing is handled by the backend during document upload.
+      // We set the state to ready as the document has already been processed by the backend.
+      this.setState(document.id, 'ready');
     } catch (error) {
-      console.error('Indexing failed', error);
+      console.error('Indexing state transition failed', error);
       this.setState(document.id, 'error');
     }
   }
 
   hasIndex(docId: string): boolean {
-    return (this.chunksByDoc.get(docId)?.length ?? 0) > 0;
+    // The backend stores the indexes persistently, so any successfully loaded document has an index.
+    return true;
   }
 
   getChunkCount(docId: string): number {
-    return this.chunksByDoc.get(docId)?.length ?? 0;
+    return 0; // Not used on the client-side anymore since chunk counts are read from the document metadata.
   }
 
   async search(
-    docId: string,
+    docId: string | null,
     query: string,
-    format: 'pdf' | 'epub',
-    limit = 5,
+    format: 'pdf' | 'epub' | null = null,
+    limit = 8,
   ): Promise<RetrievedPassage[]> {
-    const chunks = this.chunksByDoc.get(docId) ?? [];
-    if (chunks.length === 0) {
+    try {
+      const results = await firstValueFrom(
+        this.http.post<RetrievedPassage[]>(`${this.apiUrl}/api/query`, {
+          query,
+          docId,
+          limit,
+        })
+      );
+      return results || [];
+    } catch (error) {
+      console.error('Hybrid search failed on backend:', error);
       return [];
     }
-
-    const queryTokens = this.tokenize(query);
-    const normalizedQuery = query.toLowerCase().trim();
-
-    let ranked: { chunk: IndexedChunk; score: number }[] = [];
-
-    try {
-      const queryEmbedding = await this.embeddingService.getEmbedding(query);
-
-      ranked = chunks.map((chunk) => {
-        const overlap = chunk.tokens.filter((token) =>
-          queryTokens.some(
-            (queryToken) => token === queryToken || token.startsWith(queryToken),
-          ),
-        ).length;
-        const coverage = overlap / Math.max(queryTokens.length, 1);
-        const phraseBoost = chunk.text.toLowerCase().includes(normalizedQuery)
-          ? 0.5
-          : 0;
-        const fuzzyBoost = this.bigramDice(normalizedQuery, chunk.text.toLowerCase());
-        const lexicalScore = coverage + phraseBoost + fuzzyBoost * 0.3;
-
-        const vectorScore = this.embeddingService.cosineSimilarity(
-          queryEmbedding,
-          chunk.embedding ?? [],
-        );
-        return { chunk, score: vectorScore * 0.7 + lexicalScore * 0.3 };
-      });
-    } catch (error) {
-      console.warn('Vector search failed, falling back to lexical search', error);
-      ranked = chunks.map((chunk) => {
-        const overlap = chunk.tokens.filter((token) =>
-          queryTokens.some(
-            (queryToken) => token === queryToken || token.startsWith(queryToken),
-          ),
-        ).length;
-        const coverage = overlap / Math.max(queryTokens.length, 1);
-        const phraseBoost = chunk.text.toLowerCase().includes(normalizedQuery) ? 0.45 : 0;
-        const fuzzyBoost = this.bigramDice(normalizedQuery, chunk.text.toLowerCase());
-        return { chunk, score: coverage + phraseBoost + fuzzyBoost * 0.35 };
-      });
-    }
-
-    return ranked
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit)
-      .filter(({ score }) => score > 0.05)
-      .map(({ chunk, score }) => ({
-        chunkId: chunk.id,
-        score,
-        snippet: chunk.text.slice(0, 300).trimEnd(),
-        sectionPath: chunk.sectionPath,
-        anchor: {
-          docId: chunk.docId,
-          format,
-          page: format === 'pdf' ? chunk.page : undefined,
-          cfiStart: format === 'epub' ? chunk.cfiStart : undefined,
-        },
-      }));
-  }
-
-  private async extractPdfChunks(
-    docId: string,
-    file: File,
-  ): Promise<IndexedChunk[]> {
-    const data = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data }).promise;
-    const allChunks: IndexedChunk[] = [];
-
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-      const text = textContent.items
-        .map((item) => ('str' in item ? item.str : ''))
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      if (!text) {
-        continue;
-      }
-
-      const pageChunks = this.chunkText(docId, pageNum, text);
-      allChunks.push(...pageChunks);
-    }
-
-    return allChunks;
-  }
-
-  private async extractEpubChunks(
-    docId: string,
-    file: File,
-  ): Promise<IndexedChunk[]> {
-    const objectUrl = URL.createObjectURL(file);
-    const allChunks: IndexedChunk[] = [];
-
-    try {
-      const book = Epub(objectUrl);
-      await (book as any).ready;
-
-      // Build a href → title map from the table of contents
-      const tocMap = new Map<string, string>();
-      const toc: any[] = (await (book as any).loaded.navigation)?.toc ?? [];
-      const walkToc = (items: any[]) => {
-        for (const item of items) {
-          if (item.href) {
-            // Strip fragment identifiers from the href for matching
-            const href = item.href.split('#')[0];
-            tocMap.set(href, item.label?.trim() ?? '');
-          }
-          if (item.subitems?.length) {
-            walkToc(item.subitems);
-          }
-        }
-      };
-      walkToc(toc);
-
-      await (book as any).loaded.spine;
-      const spineItems: any[] = (book as any).spine?.spineItems ?? [];
-
-      let spineIndex = 0;
-      for (const spineItem of spineItems) {
-        spineIndex++;
-        try {
-          await spineItem.load((book as any).load.bind(book));
-
-          // Extract plain text from the spine item's document
-          const doc: Document | undefined = spineItem.document;
-          const rawText = doc?.body?.textContent ?? '';
-          const text = rawText.replace(/\s+/g, ' ').trim();
-
-          if (!text) {
-            spineItem.unload();
-            continue;
-          }
-
-          // Determine section label from TOC map, fallback to "Chapter N"
-          const hrefKey = (spineItem.href ?? '').split('#')[0];
-          const sectionLabel = tocMap.get(hrefKey) || `Chapter ${spineIndex}`;
-
-          // cfiBase is the spine item's CFI prefix (e.g. "epubcfi(/6/4!)")
-          const cfiBase: string = spineItem.cfiBase ?? '';
-
-          const chunks = this.chunkText(docId, spineIndex, text, [sectionLabel], cfiBase);
-          allChunks.push(...chunks);
-        } catch (itemError) {
-          console.warn(`[DocumentIndexService] EPUB spine item ${spineIndex} failed:`, itemError);
-        } finally {
-          try {
-            spineItem.unload();
-          } catch { /* ignore */ }
-        }
-      }
-
-      book.destroy();
-    } finally {
-      URL.revokeObjectURL(objectUrl);
-    }
-
-    return allChunks;
-  }
-
-  private chunkText(
-    docId: string,
-    page: number,
-    text: string,
-    sectionPath?: string[],
-    cfiStart?: string,
-  ): IndexedChunk[] {
-    const words = text.split(/\s+/);
-    const chunkSize = 180;
-    const overlap = 50;
-    const chunks: IndexedChunk[] = [];
-
-    for (let start = 0; start < words.length; start += chunkSize - overlap) {
-      const slice = words.slice(start, start + chunkSize);
-      if (slice.length < 40) {
-        continue;
-      }
-      const chunkText = slice.join(' ');
-      chunks.push({
-        id: `${docId}-p${page}-c${start}`,
-        docId,
-        page,
-        text: chunkText,
-        sectionPath: sectionPath ?? [`Page ${page}`],
-        tokens: this.tokenize(chunkText),
-        ...(cfiStart !== undefined ? { cfiStart } : {}),
-      });
-    }
-
-    if (chunks.length === 0) {
-      chunks.push({
-        id: `${docId}-p${page}-full`,
-        docId,
-        page,
-        text,
-        sectionPath: sectionPath ?? [`Page ${page}`],
-        tokens: this.tokenize(text),
-        ...(cfiStart !== undefined ? { cfiStart } : {}),
-      });
-    }
-
-    return chunks;
-  }
-
-  private tokenize(text: string): string[] {
-    const stopWords = new Set([
-      'the',
-      'a',
-      'an',
-      'and',
-      'or',
-      'to',
-      'of',
-      'in',
-      'on',
-      'is',
-      'are',
-      'was',
-      'were',
-      'for',
-      'with',
-      'that',
-      'this',
-      'it',
-      'as',
-      'by',
-      'at',
-      'from',
-      'be',
-      'about',
-    ]);
-
-    return text
-      .toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .filter((token) => token.length > 1 && !stopWords.has(token));
-  }
-
-  private bigramDice(left: string, right: string): number {
-    const a = left.replace(/\s+/g, ' ').trim();
-    const b = right.replace(/\s+/g, ' ').trim();
-    if (a.length < 2 || b.length < 2) {
-      return 0;
-    }
-
-    const leftBigrams = this.toBigrams(a);
-    const rightBigrams = this.toBigrams(b);
-    let matches = 0;
-    const rightCounts = new Map<string, number>();
-
-    for (const bg of rightBigrams) {
-      rightCounts.set(bg, (rightCounts.get(bg) ?? 0) + 1);
-    }
-
-    for (const bg of leftBigrams) {
-      const current = rightCounts.get(bg) ?? 0;
-      if (current > 0) {
-        matches += 1;
-        rightCounts.set(bg, current - 1);
-      }
-    }
-
-    return (2 * matches) / (leftBigrams.length + rightBigrams.length);
-  }
-
-  private toBigrams(text: string): string[] {
-    const output: string[] = [];
-    for (let i = 0; i < text.length - 1; i++) {
-      output.push(text.slice(i, i + 2));
-    }
-    return output;
   }
 
   private setState(

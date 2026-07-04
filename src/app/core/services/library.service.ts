@@ -1,46 +1,58 @@
-import { Injectable, signal } from '@angular/core';
-import { LibraryDocument, SupportedDocumentFormat } from '../models/document.models';
-import { TauriBridgeService } from './tauri-bridge.service';
+import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { LibraryDocument } from '../models/document.models';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root',
 })
 export class LibraryService {
+  private readonly http = inject(HttpClient);
+  private readonly apiUrl = environment.apiUrl;
+
   readonly documents = signal<LibraryDocument[]>([]);
   readonly activeDocumentId = signal<string | null>(null);
 
-  constructor(private readonly tauriBridge: TauriBridgeService) {}
-
   async loadLibrary(): Promise<void> {
-    if (this.tauriBridge.isTauriRuntime()) {
-      const docs = await this.tauriBridge.invoke<LibraryDocument[]>('get_library_docs');
-      this.documents.set(docs);
-      return;
+    try {
+      const docs = await firstValueFrom(
+        this.http.get<LibraryDocument[]>(`${this.apiUrl}/api/documents`)
+      );
+      this.documents.set(docs || []);
+    } catch (err) {
+      console.error('Failed to load library from backend:', err);
+      this.documents.set([]);
     }
-
-    this.documents.set([]);
   }
 
-  addLocalFile(file: File, objectUrl: string): LibraryDocument | null {
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    if (extension !== 'pdf' && extension !== 'epub') {
-      return null;
-    }
+  async uploadDocument(file: File): Promise<LibraryDocument> {
+    const formData = new FormData();
+    formData.append('file', file);
 
-    const format = extension as SupportedDocumentFormat;
-    const now = new Date().toISOString();
-    const doc: LibraryDocument = {
-      id: crypto.randomUUID(),
-      title: file.name,
-      format,
-      filePath: objectUrl,
-      addedAt: now,
-      lastOpenedAt: now,
-    };
+    const doc = await firstValueFrom(
+      this.http.post<LibraryDocument>(`${this.apiUrl}/api/documents`, formData)
+    );
+
     const existing = this.documents();
     this.documents.set([doc, ...existing]);
     this.activeDocumentId.set(doc.id);
     return doc;
+  }
+
+  async deleteDocument(docId: string): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.http.delete(`${this.apiUrl}/api/documents/${docId}`)
+      );
+      this.documents.update((docs) => docs.filter((d) => d.id !== docId));
+      if (this.activeDocumentId() === docId) {
+        this.activeDocumentId.set(null);
+      }
+    } catch (err) {
+      console.error(`Failed to delete document ${docId}:`, err);
+      throw err;
+    }
   }
 
   setActiveDocument(docId: string): void {
@@ -60,3 +72,4 @@ export class LibraryService {
     return this.documents().find((doc) => doc.id === id) ?? null;
   }
 }
+

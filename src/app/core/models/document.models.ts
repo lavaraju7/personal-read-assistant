@@ -7,7 +7,9 @@ export interface LibraryDocument {
   filePath: string;
   addedAt: string;
   lastOpenedAt?: string;
+  chunkCount?: number;
 }
+
 
 export interface DocumentAnchor {
   docId: string;

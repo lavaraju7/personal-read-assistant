@@ -2,99 +2,122 @@
   @if (!activeDocument()) {
   <!-- HOME SCREEN -->
   <div class="home-screen">
-    <header class="home-header">
-      <h1>
-        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-        </svg>
-        Personal Reading Assistant
-      </h1>
-      <p class="subtitle">A minimalist, privacy-first document viewer & grounded AI assistant</p>
-    </header>
-
-    <section class="import-card">
-      <label class="file-picker-card">
-        <div class="picker-content">
-          <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" x2="12" y1="3" y2="15" />
+    <div class="home-content">
+      <header class="home-header">
+        <div class="brand-badge">AI-POWERED</div>
+        <h1>
+          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
           </svg>
-          <span class="picker-title">Import PDF or EPUB Document</span>
-          <span class="picker-desc">Click to browse your local files</span>
-        </div>
-        <input type="file" accept=".pdf,.epub" (change)="onFileSelected($event)" />
-      </label>
-    </section>
+          Personal Read Assistant
+        </h1>
+        <p class="subtitle">A premium, offline-first document viewer & semantic hybrid search assistant</p>
+      </header>
 
-    <section class="recent-files">
-      <h3>Recently Opened Documents</h3>
-      <div class="recent-list">
-        @for (doc of recentDocuments(); track doc.id) {
-        <button class="recent-item" type="button" (click)="setActive(doc.id)">
-          <div class="recent-icon">
-            @if (doc.format === 'pdf') {
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-            } @else {
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-            </svg>
-            }
+      <section class="import-card">
+        <label class="file-picker-card">
+          <div class="picker-content">
+            <div class="icon-circle">
+              <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" x2="12" y1="3" y2="15" />
+              </svg>
+            </div>
+            <span class="picker-title">Import PDF or EPUB Document</span>
+            <span class="picker-desc">Click to browse your local computer files</span>
           </div>
-          <div class="recent-info">
-            <span class="recent-title">{{ doc.title }}</span>
-            <span class="recent-meta">
-              {{ doc.format | uppercase }} &bull; Chunks: {{ getChunkCount(doc.id) || 'Not indexed' }}
-            </span>
+          <input type="file" accept=".pdf,.epub" (change)="onFileSelected($event)" />
+        </label>
+      </section>
+
+      <section class="recent-files">
+        <h3>Your Library Shelf</h3>
+        <div class="recent-list">
+          @for (doc of recentDocuments(); track doc.id) {
+          <div class="recent-item-container">
+            <button class="recent-item" type="button" (click)="setActive(doc.id)">
+              <div class="recent-icon">
+                @if (doc.format === 'pdf') {
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                } @else {
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                </svg>
+                }
+              </div>
+              <div class="recent-info">
+                <span class="recent-title">{{ doc.title }}</span>
+                <span class="recent-meta">
+                  <span class="format-tag" [class.format-pdf]="doc.format === 'pdf'" [class.format-epub]="doc.format === 'epub'">
+                    {{ doc.format | uppercase }}
+                  </span>
+                  &bull; {{ getChunkCount(doc) }} semantic passage chunks
+                </span>
+              </div>
+            </button>
+            
+            <button class="delete-doc-btn" type="button" (click)="deleteDoc($event, doc.id)" title="Delete Document">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
+            </button>
           </div>
-        </button>
-        } @empty {
-        <div class="no-recent">
-          <p>Your library is empty. Import a document above to begin reading.</p>
+          } @empty {
+          <div class="no-recent">
+            <p>Your library is empty. Import a PDF or EPUB document above to get started.</p>
+          </div>
+          }
         </div>
-        }
-      </div>
-    </section>
+      </section>
+    </div>
   </div>
   } @else if (isIndexing()) {
   <!-- INDEXING LOADING SCREEN -->
   <div class="loading-screen">
     <div class="loading-card">
-      <div class="spinner"></div>
-      <h2>Indexing & Chunking</h2>
+      <div class="spinner-container">
+        <div class="spinner"></div>
+        <div class="spinner-pulse"></div>
+      </div>
+      <h2>Indexing & Semantic Chunking</h2>
       <p class="loading-doc">{{ activeDocument()?.title }}</p>
       <div class="progress-info">
-        <span class="status-badge">Status: Indexing</span>
-        <span class="chunks-badge">Chunks: {{ activeDocument() ? getChunkCount(activeDocument()!.id) : 0 }}</span>
+        <span class="status-badge">Processing Document</span>
       </div>
-      <p class="loading-help">Building a local semantic database for AI recall...</p>
+      <p class="loading-help">The python backend is extracting pages, building structural chunks, and generating dense vector embeddings...</p>
     </div>
   </div>
   } @else if (isError()) {
   <!-- INDEXING ERROR SCREEN -->
   <div class="error-screen">
     <div class="error-card">
-      <svg class="error-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" x2="12" y1="8" y2="12" />
-        <line x1="12" x2="12.01" y1="16" y2="16" />
-      </svg>
-      <h2>Indexing Failed</h2>
+      <div class="error-icon-container">
+        <svg class="error-icon" xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" x2="12" y1="8" y2="12" />
+          <line x1="12" x2="12.01" y1="16" y2="16" />
+        </svg>
+      </div>
+      <h2>Processing Failed</h2>
       <p class="error-doc">{{ activeDocument()?.title }}</p>
       <p class="error-help">
-        We couldn't build the semantic search index for this document. If this is your first time importing, please
-        ensure you are online to download the local embedding model.
+        We encountered an error during parsing, chunking, or embedding generation on the Python backend. Make sure the backend server is running and has access to download the embedding model.
       </p>
       <div class="error-actions">
-        <button class="retry-btn" type="button" (click)="retryIndexing()">Retry Indexing</button>
+        <button class="retry-btn" type="button" (click)="retryIndexing()">Retry Processing</button>
         <button class="ignore-btn" type="button" (click)="openWithoutAi()">
           Open Document Anyway (No AI)
         </button>
@@ -119,6 +142,15 @@
       <h1 class="document-title">{{ activeDocument()?.title }}</h1>
 
       <div class="header-actions">
+        <!-- Floating search open trigger when assistant sidebar is closed -->
+        <button class="header-ai-toggle-btn" (click)="toggleAssistant()" [class.active]="isAssistantOpen()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+          </svg>
+          Ask AI
+        </button>
+
         <label class="minimal-import-btn">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -136,11 +168,18 @@
     <div class="reader-body">
       <section class="viewer-panel">
         @if (activeDocument(); as active) {
-        @if (active.format === 'pdf') {
-        <app-pdf-viewer [sourceUrl]="active.filePath" (pageViewed)="onPdfPageViewed($event)"></app-pdf-viewer>
+        @if (active.id.startsWith('indexing-')) {
+          <div class="viewer-indexing-overlay">
+            <div class="spinner"></div>
+            <p>Readying viewer content...</p>
+          </div>
         } @else {
-        <app-epub-viewer [sourceUrl]="active.filePath"
-          (locationChanged)="onEpubLocationChanged($event)"></app-epub-viewer>
+          @if (active.format === 'pdf') {
+          <app-pdf-viewer [sourceUrl]="active.filePath" (pageViewed)="onPdfPageViewed($event)"></app-pdf-viewer>
+          } @else {
+          <app-epub-viewer [sourceUrl]="active.filePath"
+            (locationChanged)="onEpubLocationChanged($event)"></app-epub-viewer>
+          }
         }
         }
       </section>
@@ -166,11 +205,11 @@
         <header class="assistant-header">
           <h2>
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <path
                 d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
             </svg>
-            Reading Assistant
+            Semantic AI Search
           </h2>
           <button class="close-assistant-btn" (click)="toggleAssistant()" title="Close Assistant">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -182,46 +221,73 @@
         </header>
 
         <div class="assistant-content">
-          <p class="provider-status">
-            {{ providerStatus().configured ? '🟢' : '🔴' }} {{ providerStatus().message }}
-          </p>
+          <div class="status-indicator">
+            <span class="pulse-dot" [class.dot-green]="providerStatus().configured" [class.dot-red]="!providerStatus().configured"></span>
+            <span class="status-text">{{ providerStatus().message }}</span>
+          </div>
+
+          <!-- Segmented Search Scope Toggle -->
+          <div class="scope-picker-section">
+            <span class="picker-label">Search Scope</span>
+            <div class="scope-toggle-pills">
+              <button type="button" [class.active]="searchScope() === 'active'" (click)="searchScope.set('active')" [disabled]="!activeDocument() || activeDocument()!.id.startsWith('indexing-')">
+                Active Book
+              </button>
+              <button type="button" [class.active]="searchScope() === 'library'" (click)="searchScope.set('library')">
+                Entire Library
+              </button>
+            </div>
+          </div>
 
           <div class="query-row">
-            <input type="text" [ngModel]="query()" (ngModelChange)="query.set($event)"
-              placeholder="Ask a question about your documents..." (keyup.enter)="searchRecall()" />
-            <button type="button" (click)="searchRecall()">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                style="margin-right: 4px; vertical-align: text-bottom;">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              Ask
-            </button>
+            <div class="input-wrapper">
+              <input type="text" [ngModel]="query()" (ngModelChange)="query.set($event)"
+                placeholder="Ask anything about your books..." (keyup.enter)="searchRecall()" />
+              <button type="button" class="ask-btn" (click)="searchRecall()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              </button>
+            </div>
           </div>
 
-          <div class="answer-box">
-            @if (isRunningAnswer()) {
-            <p><em>Thinking...</em></p>
-            } @else if (groundedAnswer()) {
-            <p>{{ groundedAnswer() }}</p>
-            } @else {
-            <p style="color: var(--text-tertiary); font-style: italic;">Your AI answer will appear here based strictly
-              on your library content.</p>
-            }
+          <div class="answer-container">
+            <div class="answer-box-header">Grounded AI Answer</div>
+            <div class="answer-box">
+              @if (isRunningAnswer()) {
+              <div class="thinking-loader">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <em>Formulating response...</em>
+              </div>
+              } @else if (groundedAnswer()) {
+              <p>{{ groundedAnswer() }}</p>
+              } @else {
+              <p class="placeholder-text">Ask a question above. The AI will extract matches across your selected scope and synthesize a grounded response here.</p>
+              }
+            </div>
           </div>
 
+          <div class="passages-section-header">
+            Retrieved Passages ({{ results().length }})
+          </div>
           <ul class="results-list">
             @for (result of results(); track result.chunkId) {
             <li>
-              <button type="button" (click)="jumpToResult(result)"
+              <button type="button" class="passage-item" (click)="jumpToResult(result)"
                 [class.active]="selectedResultId() === result.chunkId">
                 <span class="snippet">"{{ result.snippet }}"</span>
-                <span class="section">{{ result.sectionPath.join(' > ') }}</span>
+                <span class="passage-meta">
+                  <span class="book-name-tag">{{ result.anchor.docId | slice:0:8 }} ({{ result.anchor.format | uppercase }})</span>
+                  <span class="section-tag">{{ result.sectionPath.join(' > ') }}</span>
+                </span>
               </button>
             </li>
             } @empty {
-            <li class="empty">No search results to show.</li>
+            <li class="empty">No retrieved passages to show yet.</li>
             }
           </ul>
         </div>

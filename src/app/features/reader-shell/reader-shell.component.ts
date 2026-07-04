@@ -33,6 +33,7 @@ export class ReaderShellComponent {
   readonly groundedAnswer = signal('');
   readonly isRunningAnswer = signal(false);
   readonly isAssistantOpen = signal(false);
+  readonly searchScope = signal<'active' | 'library'>('library');
 
   readonly documents = this.libraryService.documents;
   readonly activeDocument = computed(() => this.libraryService.getActiveDocument());
@@ -66,6 +67,10 @@ export class ReaderShellComponent {
     });
   });
 
+  ngOnInit() {
+    this.libraryService.loadLibrary();
+  }
+
   closeDocument(): void {
     this.libraryService.activeDocumentId.set(null);
     this.isAssistantOpen.set(false);
@@ -76,13 +81,13 @@ export class ReaderShellComponent {
   }
 
   async retryIndexing(): Promise<void> {
-    const doc = this.activeDocument();
-    if (doc) {
-      try {
-        await this.indexDocFromUrl(doc);
-      } catch (err) {
-        console.error('Failed to retry indexing document:', err);
-      }
+    // Retrying is handled by re-uploading or reloading
+    const active = this.activeDocument();
+    if (active) {
+      this.documentIndexService.indexingState.update((current) => ({
+        ...current,
+        [active.id]: 'ready',
+      }));
     }
   }
 
@@ -102,10 +107,27 @@ export class ReaderShellComponent {
     if (!file) {
       return;
     }
-    const objectUrl = URL.createObjectURL(file);
-    const document = this.libraryService.addLocalFile(file, objectUrl);
-    if (document) {
-      await this.documentIndexService.indexDocument(document, file);
+    
+    const tempId = 'indexing-' + Date.now();
+    this.documentIndexService.indexingState.update((current) => ({
+      ...current,
+      [tempId]: 'indexing',
+    }));
+    this.libraryService.activeDocumentId.set(tempId);
+
+    try {
+      const document = await this.libraryService.uploadDocument(file);
+      this.documentIndexService.indexingState.update((current) => ({
+        ...current,
+        [document.id]: 'ready',
+      }));
+      this.libraryService.activeDocumentId.set(document.id);
+    } catch (err) {
+      console.error('Failed to upload and index document:', err);
+      this.documentIndexService.indexingState.update((current) => ({
+        ...current,
+        [tempId]: 'error',
+      }));
     }
     input.value = '';
   }
@@ -113,58 +135,63 @@ export class ReaderShellComponent {
   async setActive(docId: string): Promise<void> {
     this.libraryService.setActiveDocument(docId);
     const doc = this.activeDocument();
-    if (doc && this.indexingState()[doc.id] !== 'ready' && this.indexingState()[doc.id] !== 'indexing') {
+    if (doc) {
+      this.documentIndexService.indexingState.update((current) => ({
+        ...current,
+        [doc.id]: 'ready',
+      }));
+    }
+  }
+
+  async deleteDoc(event: Event, docId: string): Promise<void> {
+    event.stopPropagation(); // Prevent opening the doc when clicking delete
+    if (confirm('Are you sure you want to delete this document and its semantic index?')) {
       try {
-        await this.indexDocFromUrl(doc);
+        await this.libraryService.deleteDocument(docId);
       } catch (err) {
-        console.error('Failed to auto-index active document:', err);
+        alert('Failed to delete document');
       }
     }
   }
 
-  private async indexDocFromUrl(doc: LibraryDocument): Promise<void> {
-    try {
-      const response = await fetch(doc.filePath);
-      const blob = await response.blob();
-      const file = new File([blob], doc.title, {
-        type: doc.format === 'pdf' ? 'application/pdf' : 'application/epub+zip',
-      });
-      await this.documentIndexService.indexDocument(doc, file);
-    } catch (err) {
-      this.documentIndexService.indexingState.update((current) => ({
-        ...current,
-        [doc.id]: 'error',
-      }));
-      throw err;
-    }
-  }
-
   async searchRecall(): Promise<void> {
-    const activeDocument = this.activeDocument();
-    if (!activeDocument) {
-      this.results.set([]);
-      return;
-    }
-
     const query = this.query().trim();
     if (!query) {
       this.results.set([]);
       this.groundedAnswer.set('');
       return;
     }
-    const items = await this.assistantService.recallFromLibrary({
-      query,
-      currentDocId: activeDocument.id,
-    });
+
+    const activeDocument = this.activeDocument();
+    const items = await this.assistantService.recallFromLibrary(
+      {
+        query,
+        currentDocId: activeDocument?.id,
+      },
+      this.searchScope()
+    );
+
     this.results.set(items);
     this.isRunningAnswer.set(true);
     this.groundedAnswer.set('');
-    this.groundedAnswer.set(await this.assistantService.generateGroundedAnswer(query, items));
+    
+    if (items.length > 0) {
+      this.groundedAnswer.set(await this.assistantService.generateGroundedAnswer(query, items));
+    } else {
+      this.groundedAnswer.set('No context matches found in the search scope.');
+    }
     this.isRunningAnswer.set(false);
   }
 
-  jumpToResult(result: RetrievedPassage): void {
+  async jumpToResult(result: RetrievedPassage): Promise<void> {
     this.selectedResultId.set(result.chunkId);
+
+    // If the search result belongs to another document, open that book first!
+    if (!this.activeDocument() || this.activeDocument()?.id !== result.anchor.docId) {
+      await this.setActive(result.anchor.docId);
+      // Wait slightly for the rendering engine to render the viewer
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    }
 
     if (result.anchor.format === 'pdf' && result.anchor.page) {
       this.pdfViewer?.goToPage(result.anchor.page);
@@ -210,7 +237,8 @@ export class ReaderShellComponent {
     });
   }
 
-  getChunkCount(docId: string): number {
-    return this.documentIndexService.getChunkCount(docId);
+  getChunkCount(doc: LibraryDocument): number {
+    return doc.chunkCount || 0;
   }
 }
+
